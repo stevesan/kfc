@@ -2,6 +2,8 @@
 #ifndef _UTILS_HPP
 #define _UTILS_HPP
 
+#include <sifteo/math.h>
+
 static Side oppositeSide(Side s)
 {
 	switch(s)
@@ -36,12 +38,26 @@ static Float2 getSidePos(Side s)
 	return p;
 }
 
-static Float2 centerPos( Float2 p, const AssetImage& img )
+static Float2 centerPos( Float2 p, const AssetImage& img, bool doClamp = false )
 {
 	p.x -= img.pixelWidth()/2.0;
 	p.y -= img.pixelHeight()/2.0;
 
+	if( doClamp )
+	{
+		p.x = clamp( p.x, 0.0f, 128.0f-img.pixelWidth() );
+		p.y = clamp( p.y, 0.0f, 128.0f-img.pixelHeight() );
+	}
+
 	return p;
 }
+
+static Float2 clampPos( Float2 p )
+{
+	p.x = clamp(p.x, 0.0f, 128.0f);
+	p.y = clamp(p.y, 0.0f, 128.0f);
+	return p;
+}
+
 
 #endif

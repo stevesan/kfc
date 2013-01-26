@@ -220,9 +220,10 @@ void main()
 
 		int chickenBlockId = 0;
 		int chickBlocks[ gMaxNumChicks ];
-		Float2 chickenPos = {64.0, 0.0};
+		Float2 chickenPos = {48.0, 0.0};
 		float chickenSpeed = 50.0;
 		Float2 chickPoss[ gMaxNumChicks ];
+		Float2 chickenDir = {0.0, 1.0};
 		Side exitSide = BOTTOM;
 
 		for( unsigned i = 0; i < arraysize(chickBlocks); i++ )
@@ -238,13 +239,23 @@ void main()
 			float dt = (float)ts.delta();
 
 			// move chicken
-			chickenPos += dt * chickenSpeed * sideDirection(exitSide);
+			chickenPos += dt * chickenSpeed * chickenDir;
 
-			float chickenDist = dot( sideDirection(exitSide), chickenPos );
-			float sideDist = dot( sideDirection(exitSide), getSidePos(exitSide) );
+			float chickenDist = dot( chickenDir, chickenPos );
+			float sideDist = dot( chickenDir, getSidePos(exitSide) );
+
+			Side exitSide = NO_SIDE;
+			if( chickenPos.x < 0 )
+				exitSide = LEFT;
+			else if( chickenPos.x > 128.0 )
+				exitSide = RIGHT;
+			else if( chickenPos.y < 0 )
+				exitSide = TOP;
+			else if( chickenPos.y > 128.0 )
+				exitSide = BOTTOM;
 
 			// Chicken walking to next block?
-			if( chickenDist > sideDist )
+			if( exitSide != NO_SIDE )
 			{
 				Block& block = blocks[chickenBlockId];
 
@@ -260,16 +271,20 @@ void main()
 					// update exit side
 					Block& newBlock = blocks[chickenBlockId];
 					Side enterSide = newBlock.getSideOf(oldChickenBlockId);
-					exitSide = oppositeSide(enterSide);
+					chickenDir = -1 * sideDirection(enterSide);
+
+					chickenPos = centerPos(
+						getSidePos(enterSide),
+						ChickenSprites, true );
 				}
 				else
 				{
 					// game over! do nothing for now
+					chickenPos = centerPos(
+						getSidePos(oppositeSide(exitSide)),
+						ChickenSprites, true );
 				}
 
-				chickenPos = centerPos(
-					getSidePos(oppositeSide(exitSide)),
-					ChickenSprites );
 			}
 
 			for (unsigned i = 0; i < arraysize(blocks); i++)
@@ -295,6 +310,7 @@ void main()
 
 				block.update(ts.delta());
 			}
+
 
 			System::paint();
 			ts.next();

@@ -15,19 +15,6 @@ class Block
 
 public:
 
-	enum RoadType { Road_I, Road_T, Road_Cross, NumRoads } roadType;
-
-	bool side2HasCar[4];
-	int side2CarRange[4];
-
-	enum SeedType { Seed_NotReady, Seed_Ready, Seed_Rotten, NumSeeds } seedType;
-
-	enum WarningType { Warning_None, Warning_NoBottom, Warning_BottomWrong, NumWarnings } warningType;
-
-	enum TouchState { Touch_None, Touch_WrongSide, Touch_Good };
-
-	TouchState side2touch[4];
-
 	void init(CubeID cube)
 	{
 			id = cube;
@@ -35,25 +22,10 @@ public:
 			vid.attach(cube);
 
 			// set up arrow sprite positions
-			int hw = Arrows.pixelWidth()/2;
-			int hh = Arrows.pixelHeight()/2;
-			int cx = 64;
-			int cy = 64;
-			Int2 p;
-			p.set(cx-hw, 0);
-			vid.sprites[TOP+1].move(p);
-			p.set(128-2*hw, cy-hh);
-			vid.sprites[RIGHT+1].move( p );
-			p.set(cx-hw, 128-2*hh);
-			vid.sprites[BOTTOM+1].move( p );
-			p.set(0, cy-hh);
-			vid.sprites[LEFT+1].move( p );
-
-			// temp
-			for( int side = 0; side < NUM_SIDES; side++ )
-			{
-				vid.sprites[side+1].setImage( Arrows, 0 );
-			}
+			vid.sprites[TOP+1].move( centerPos(getSidePos(TOP), Arrows, true) );
+			vid.sprites[BOTTOM+1].move( centerPos(getSidePos(BOTTOM), Arrows, true) );
+			vid.sprites[RIGHT+1].move( centerPos(getSidePos(RIGHT), Arrows, true) );
+			vid.sprites[LEFT+1].move( centerPos(getSidePos(LEFT), Arrows, true) );
 	}
 
 	void randomize( Random& rand )
@@ -90,11 +62,10 @@ public:
 		}
 	}
 
+
 	void showChicken( Float2 pos )
 	{
 		vid.sprites[0].setImage( ChickenSprites, 0 );
-		pos.x -= ChickenSprites.pixelWidth()/2;
-		pos.y -= ChickenSprites.pixelHeight()/2;
 		vid.sprites[0].move( pos );
 	}
 
@@ -218,8 +189,21 @@ public:
 
 private:
 
+	enum RoadType { Road_I, Road_T, Road_Cross, NumRoads } roadType;
+
+	enum SeedType { Seed_NotReady, Seed_Ready, Seed_Rotten, NumSeeds } seedType;
+
+	enum WarningType { Warning_None, Warning_NoBottom, Warning_BottomWrong, NumWarnings } warningType;
+
+	enum TouchState { Touch_None, Touch_WrongSide, Touch_Good };
+
 	VideoBuffer vid;
 	int id;
+
+	bool side2HasCar[4];
+	int side2CarRange[4];
+	TouchState side2touch[4];
+
 
 };
 
