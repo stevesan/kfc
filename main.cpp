@@ -6,23 +6,23 @@
 #include "assets.gen.h"
 using namespace Sifteo;
 
-static const unsigned gNumCubes = 2;
+static const unsigned gNumCubes = 3;
 Random gRandom;
 
 static AssetSlot MainSlot = AssetSlot::allocate()
     .bootstrap(GameAssets);
 
 static Metadata M = Metadata()
-    .title("Stars SDK Example")
+    .title("Chicken Run, GGJ2013")
     .package("com.sifteo.sdk.stars", "1.0")
     .icon(Icon)
     .cubeRange(gNumCubes);
 
 
-class StarDemo {
+class KFCGame {
 public:
 
-    static const unsigned numStars = 8;
+    static const unsigned numChickens = 4;
     
     static const float textSpeed = 0.2f;
     static const float bgScrollSpeed = 10.0f;
@@ -39,7 +39,7 @@ public:
         vid.initMode(BG0_SPR_BG1);
         vid.attach(cube);
         
-        for (unsigned i = 0; i < numStars; i++)
+        for (unsigned i = 0; i < numChickens; i++)
             initStar(i);
 
         // Our background is 18x18 to match BG0, and it seamlessly tiles
@@ -139,9 +139,9 @@ public:
          * Update starfield animation
          */
         
-        for (unsigned i = 0; i < numStars; i++) {
+        for (unsigned i = 0; i < numChickens; i++) {
             const Float2 center = { 64 - 3.5f, 64 - 3.5f };
-            vid.sprites[i].setImage(Star, frame % Star.numFrames());
+            vid.sprites[i].setImage(Chicken, frame % Chicken.numFrames());
             vid.sprites[i].move(stars[i].pos + center);
             
             stars[i].pos += float(timeStep) * (stars[i].velocity + tilt);
@@ -169,7 +169,7 @@ public:
 private:   
     struct {
         Float2 pos, velocity;
-    } stars[numStars];
+    } stars[numChickens];
     
     VideoBuffer vid;
     unsigned frame;
@@ -194,7 +194,7 @@ private:
 
 void main()
 {
-    static StarDemo instances[gNumCubes];
+    static KFCGame instances[gNumCubes];
 
     AudioTracker::play(Music);
 
@@ -204,7 +204,7 @@ void main()
     TimeStep ts;
     while (1) {
         for (unsigned i = 0; i < arraysize(instances); i++)
-            instances[i].update(ts.delta());
+            instances[i].update((float)ts.delta()/(float)(i+1));
 
         System::paint();
         ts.next();
