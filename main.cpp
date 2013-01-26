@@ -13,6 +13,7 @@ using namespace Sifteo;
 //  
 //----------------------------------------
 static const unsigned gNumBlocksBuffered = 6;
+static const unsigned gMaxNumChicks = 24;
 Block gBlocks[ gNumBlocksBuffered ];
 
 Random gRandom;
@@ -180,9 +181,11 @@ public:
     }
 
 private:   
-    struct {
+    struct
+		{
         Float2 pos, velocity;
-    } stars[numChickens];
+    }
+		stars[numChickens];
     
     VideoBuffer vid;
     unsigned frame;
@@ -208,6 +211,18 @@ void main()
 {
     static Block instances[gNumBlocksBuffered];
 
+		int chickenBlock = 0;
+		int chickBlocks[ gMaxNumChicks ];
+		Float2 chickenPos = {64.0, 0.0};
+		Float2 chickPoss[ gMaxNumChicks ];
+
+		for( unsigned i = 0; i < arraysize(chickBlocks); i++ )
+		{
+			chickBlocks[i] = -1;
+			chickPoss[i].x = 0.0;
+			chickPoss[i].y = 0.0;
+		}
+
     for (unsigned i = 0; i < arraysize(instances); i++)
 		{
         instances[i].init(i);
@@ -215,11 +230,48 @@ void main()
 		}
     
     TimeStep ts;
-    while (1) {
-        for (unsigned i = 0; i < arraysize(instances); i++)
-            instances[i].update((float)ts.delta()/(float)(i+1));
+    while (1)
+		{
 
-        System::paint();
-        ts.next();
+			// Do a DFS to check if 
+
+			float td = (float)ts.delta();
+
+			// check that all chicks
+			chickenPos.y += td * 50.0;
+
+			if( chickenPos.y > 128 )
+			{
+				chickenPos.y = 0.0;
+				Block& block = instances[chickenBlock];
+				int oldCubeId = chickenBlock;
+				chickenBlock = block.getBotNbor();
+
+				if( chickenBlock == -1 )
+					chickenBlock = 0;
+				else
+				{
+					Block& newBlock = instances[chickenBlock];
+					if( TOP != newBlock.getSideOf(oldCubeId) )
+					{
+					chickenBlock = 0;
+					}
+				}
+			}
+
+			for (unsigned i = 0; i < arraysize(instances); i++)
+			{
+				Block& block = instances[i];
+
+				if( i == chickenBlock )
+					block.showChicken( chickenPos );
+				else
+					block.hideChicken();
+
+				block.update(ts.delta());
+			}
+
+			System::paint();
+			ts.next();
     }
 }

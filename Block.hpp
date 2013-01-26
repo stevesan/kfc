@@ -43,19 +43,47 @@ public:
 		int bgIdx = (int)roadType % RoadBgs.numFrames();
 		vid.bg0.image(vec(0,0), RoadBgs, bgIdx);
 
+/*
 		int seedIdx = (int)seedType % SeedSprites.numFrames();
 		vid.sprites[0].setImage( SeedSprites, seedIdx );
 					const Float2 center = { 64 - 3.5f, 64 - 3.5f };
 		vid.sprites[0].move( center );
+		*/
 	}
 
-	void update(TimeDelta timeStep)
+	void showChicken( Float2 pos )
 	{
+		vid.sprites[0].setImage( ChickenSprites, 0 );
+		vid.sprites[0].move( pos );
+	}
+
+	void hideChicken()
+	{
+		vid.sprites[0].hide();
+	}
+
+	void update( TimeDelta timeStep )
+	{
+	}
+
+	int getBotNbor()
+	{
+		if( vid.virtualNeighbors().hasCubeAt(BOTTOM) )
+		{
+			return vid.virtualNeighbors().cubeAt(BOTTOM);
+		}
+		else
+			return -1;
+	}
+
+	Side getSideOf(int other)
+	{
+		return vid.virtualNeighbors().sideOf(other);
 	}
 
 private:
 
-    VideoBuffer vid;
+	VideoBuffer vid;
 
 };
 
