@@ -7,5 +7,7 @@ ASSETDEPS += *.png $(ASSETS).lua
 
 include $(SDK_DIR)/Makefile.rules
 
+build : $(APP).elf
+
 run : $(APP).elf
-	siftulator $(APP).elf
+	siftulator -n 6 $(APP).elf

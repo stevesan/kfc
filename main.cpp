@@ -3,12 +3,23 @@
  */
 
 #include <sifteo.h>
-#include "assets.gen.h"
 using namespace Sifteo;
 
-static const unsigned gNumCubes = 3;
+#include "assets.gen.h"
+
+#include "Block.hpp"
+
+//----------------------------------------
+//  
+//----------------------------------------
+static const unsigned gNumBlocksBuffered = 6;
+Block gBlocks[ gNumBlocksBuffered ];
+
 Random gRandom;
 
+//----------------------------------------
+//  
+//----------------------------------------
 static AssetSlot MainSlot = AssetSlot::allocate()
     .bootstrap(GameAssets);
 
@@ -16,9 +27,11 @@ static Metadata M = Metadata()
     .title("Chicken Run, GGJ2013")
     .package("com.sifteo.sdk.stars", "1.0")
     .icon(Icon)
-    .cubeRange(gNumCubes);
+    .cubeRange(gNumBlocksBuffered);
 
-
+//----------------------------------------
+//  
+//----------------------------------------
 class KFCGame {
 public:
 
@@ -43,7 +56,7 @@ public:
             initStar(i);
 
         // Our background is 18x18 to match BG0, and it seamlessly tiles
-        vid.bg0.image(vec(0,0), Background);
+        vid.bg0.image(vec(0,0), TestBg, cube % TestBg.numFrames());
 
         // Allocate 16x2 tiles on BG1 for text at the bottom of the screen
         vid.bg1.setMask(BG1Mask::filled(vec(0,14), vec(16,2)));
@@ -141,7 +154,7 @@ public:
         
         for (unsigned i = 0; i < numChickens; i++) {
             const Float2 center = { 64 - 3.5f, 64 - 3.5f };
-            vid.sprites[i].setImage(Chicken, frame % Chicken.numFrames());
+            vid.sprites[i].setImage(ChickenSprites, frame % ChickenSprites.numFrames());
             vid.sprites[i].move(stars[i].pos + center);
             
             stars[i].pos += float(timeStep) * (stars[i].velocity + tilt);
@@ -158,9 +171,9 @@ public:
         frame++;
         fpsTimespan += timeStep;
 
-        Float2 bgVelocity = accel * bgTiltSpeed + vec(0.0f, -1.0f) * bgScrollSpeed;
-        bg += float(timeStep) * bgVelocity;
-        vid.bg0.setPanning(bg.round());
+        //Float2 bgVelocity = accel * bgTiltSpeed + vec(0.0f, -1.0f) * bgScrollSpeed;
+        //bg += float(timeStep) * bgVelocity;
+        //vid.bg0.setPanning(bg.round());
 
         text += (textTarget - text) * textSpeed;
         vid.bg1.setPanning(text.round());
@@ -191,15 +204,15 @@ private:
     }
 };
 
-
 void main()
 {
-    static KFCGame instances[gNumCubes];
-
-    AudioTracker::play(Music);
+    static Block instances[gNumBlocksBuffered];
 
     for (unsigned i = 0; i < arraysize(instances); i++)
+		{
         instances[i].init(i);
+				instances[i].randomize(gRandom);
+		}
     
     TimeStep ts;
     while (1) {
