@@ -209,9 +209,9 @@ private:
 
 void main()
 {
-    static Block instances[gNumBlocksBuffered];
+    static Block blocks[gNumBlocksBuffered];
 
-		int chickenBlock = 0;
+		int chickenBlockId = 0;
 		int chickBlocks[ gMaxNumChicks ];
 		Float2 chickenPos = {64.0, 0.0};
 		Float2 chickPoss[ gMaxNumChicks ];
@@ -223,50 +223,57 @@ void main()
 			chickPoss[i].y = 0.0;
 		}
 
-    for (unsigned i = 0; i < arraysize(instances); i++)
+    for (unsigned i = 0; i < arraysize(blocks); i++)
 		{
-        instances[i].init(i);
-				instances[i].randomize(gRandom);
+        blocks[i].init(i);
+				blocks[i].randomize(gRandom);
 		}
     
     TimeStep ts;
     while (1)
 		{
-
-			// Do a DFS to check if 
-
-			float td = (float)ts.delta();
+			float dt = (float)ts.delta();
 
 			// check that all chicks
-			chickenPos.y += td * 50.0;
+			chickenPos.y += dt * 50.0;
 
+			// Chicken walking to next block?
 			if( chickenPos.y > 128 )
 			{
+				Block& block = blocks[chickenBlockId];
 				chickenPos.y = 0.0;
-				Block& block = instances[chickenBlock];
-				int oldCubeId = chickenBlock;
-				chickenBlock = block.getBotNbor();
 
-				if( chickenBlock == -1 )
-					chickenBlock = 0;
+				if( block.isSideConnected(BOTTOM) )
+				{
+					// reset old one
+					block.randomize(gRandom);
+
+					// move to bottom block
+					chickenBlockId = block.getBotNbor();
+				}
 				else
 				{
-					Block& newBlock = instances[chickenBlock];
-					if( TOP != newBlock.getSideOf(oldCubeId) )
-					{
-					chickenBlock = 0;
-					}
+					// game over! do nothing for now
 				}
 			}
 
-			for (unsigned i = 0; i < arraysize(instances); i++)
+			for (unsigned i = 0; i < arraysize(blocks); i++)
 			{
-				Block& block = instances[i];
+				Block& block = blocks[i];
+				// update connected states
+				block.preUpdate();
 
-				if( i == chickenBlock )
+				if( i == chickenBlockId )
+				{
 					block.showChicken( chickenPos );
-				else
-					block.hideChicken();
+				}
+
+				for( int side = 0; side < NUM_SIDES; side++ )
+				{
+					int otherId = block.getNbor(side);
+					if( otherId != -1 )
+						block.onCubeTouching(otherId, (Side)side);
+				}
 
 				block.update(ts.delta());
 			}

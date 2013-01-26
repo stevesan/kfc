@@ -9,5 +9,6 @@ include $(SDK_DIR)/Makefile.rules
 
 build : $(APP).elf
 
-run : $(APP).elf
+sim : $(APP).elf
 	siftulator -n 6 $(APP).elf
+
