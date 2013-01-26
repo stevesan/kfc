@@ -7,6 +7,7 @@ using namespace Sifteo;
 
 #include "assets.gen.h"
 
+#include "Utils.hpp"
 #include "Block.hpp"
 
 //----------------------------------------
@@ -211,10 +212,18 @@ void main()
 {
     static Block blocks[gNumBlocksBuffered];
 
+    for (unsigned i = 0; i < arraysize(blocks); i++)
+		{
+        blocks[i].init(i);
+				blocks[i].randomize(gRandom);
+		}
+
 		int chickenBlockId = 0;
 		int chickBlocks[ gMaxNumChicks ];
 		Float2 chickenPos = {64.0, 0.0};
+		float chickenSpeed = 50.0;
 		Float2 chickPoss[ gMaxNumChicks ];
+		Side exitSide = BOTTOM;
 
 		for( unsigned i = 0; i < arraysize(chickBlocks); i++ )
 		{
@@ -222,39 +231,45 @@ void main()
 			chickPoss[i].x = 0.0;
 			chickPoss[i].y = 0.0;
 		}
-
-    for (unsigned i = 0; i < arraysize(blocks); i++)
-		{
-        blocks[i].init(i);
-				blocks[i].randomize(gRandom);
-		}
     
     TimeStep ts;
     while (1)
 		{
 			float dt = (float)ts.delta();
 
-			// check that all chicks
-			chickenPos.y += dt * 50.0;
+			// move chicken
+			chickenPos += dt * chickenSpeed * sideDirection(exitSide);
+
+			float chickenDist = dot( sideDirection(exitSide), chickenPos );
+			float sideDist = dot( sideDirection(exitSide), getSidePos(exitSide) );
 
 			// Chicken walking to next block?
-			if( chickenPos.y > 128 )
+			if( chickenDist > sideDist )
 			{
 				Block& block = blocks[chickenBlockId];
-				chickenPos.y = 0.0;
 
-				if( block.isSideConnected(BOTTOM) )
+				if( block.isSideConnected(exitSide) )
 				{
 					// reset old one
 					block.randomize(gRandom);
 
 					// move to bottom block
-					chickenBlockId = block.getBotNbor();
+					int oldChickenBlockId = chickenBlockId;
+					chickenBlockId = block.getNbor(exitSide);
+
+					// update exit side
+					Block& newBlock = blocks[chickenBlockId];
+					Side enterSide = newBlock.getSideOf(oldChickenBlockId);
+					exitSide = oppositeSide(enterSide);
 				}
 				else
 				{
 					// game over! do nothing for now
 				}
+
+				chickenPos = centerPos(
+					getSidePos(oppositeSide(exitSide)),
+					ChickenSprites );
 			}
 
 			for (unsigned i = 0; i < arraysize(blocks); i++)
@@ -271,8 +286,11 @@ void main()
 				for( int side = 0; side < NUM_SIDES; side++ )
 				{
 					int otherId = block.getNbor(side);
+
 					if( otherId != -1 )
-						block.onCubeTouching(otherId, (Side)side);
+					{
+						block.onCubeTouching(blocks[otherId]);
+					}
 				}
 
 				block.update(ts.delta());

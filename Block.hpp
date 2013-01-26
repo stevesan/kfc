@@ -24,10 +24,13 @@ public:
 
 	enum WarningType { Warning_None, Warning_NoBottom, Warning_BottomWrong, NumWarnings } warningType;
 
-	bool side2connected[4];
+	enum TouchState { Touch_None, Touch_WrongSide, Touch_Good };
+
+	TouchState side2touch[4];
 
 	void init(CubeID cube)
 	{
+			id = cube;
 			vid.initMode(BG0_SPR_BG1);
 			vid.attach(cube);
 
@@ -90,6 +93,8 @@ public:
 	void showChicken( Float2 pos )
 	{
 		vid.sprites[0].setImage( ChickenSprites, 0 );
+		pos.x -= ChickenSprites.pixelWidth()/2;
+		pos.y -= ChickenSprites.pixelHeight()/2;
 		vid.sprites[0].move( pos );
 	}
 
@@ -116,12 +121,20 @@ public:
 		// update side graphics
 		for( int side = 0; side < 4; side++ )
 		{
-			if( isSideConnectable((Side)side) )
+			if( !isSideConnectable(side) )
+				continue;
+
+			switch( side2touch[side] )
 			{
-				if( isSideConnected((Side)side) )
-					vid.sprites[side+1].setImage( Arrows, 1 );
-				else
+				case Touch_None:
 					vid.sprites[side+1].setImage( Arrows, 0 );
+					break;
+				case Touch_Good:
+					vid.sprites[side+1].setImage( Arrows, 1 );
+					break;
+				case Touch_WrongSide:
+					vid.sprites[side+1].setImage( Arrows, 2 );
+					break;
 			}
 		}
 	}
@@ -160,9 +173,14 @@ public:
 		}
 	}
 
+	bool isSideConnectable(int side)
+	{
+		return isSideConnectable((Side)side);
+	}
+
 	bool isSideConnected(Side side)
 	{
-		return side2connected[side];
+		return side2touch[side] == Touch_Good;
 	}
 
 	Side getSideOf(int otherId)
@@ -170,29 +188,38 @@ public:
 		return vid.virtualNeighbors().sideOf(otherId);
 	}
 
-	void resetConnected()
+	void resetTouchState()
 	{
 		for( int i = 0; i < 4; i++ )
-			side2connected[i] = false;
+			side2touch[i] = Touch_None;
 	}
 
 	void preUpdate()
 	{
-		resetConnected();
+		resetTouchState();
 		hideChicken();
 	}
 
-	void onCubeTouching(int otherId, Side side)
+	void onCubeTouching(Block& other)
 	{
-		if( isSideConnectable(side) )
+		Side mySide = getSideOf(other.id);
+		Side otherSide = other.getSideOf(id);
+
+		if( isSideConnectable(mySide) )
 		{
-			side2connected[side] = true;		
+			if( other.isSideConnectable(otherSide) )
+				side2touch[mySide] = Touch_Good;		
+			else
+				side2touch[mySide] = Touch_WrongSide;
 		}
+		else
+			side2touch[mySide] = Touch_None;
 	}
 
 private:
 
 	VideoBuffer vid;
+	int id;
 
 };
 
