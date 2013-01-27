@@ -17,6 +17,63 @@ class Block
 
 public:
 
+	Block() : isActive(false)
+	{
+	}
+
+	bool spriteInUse[8];
+
+	bool isActive;
+
+	void propagateActive(Block* blocks)
+	{
+		isActive = true;
+
+		for( int s = 0; s < NUM_SIDES; s++ )
+		{
+			int nbor = getNbor(s);
+
+			if( nbor != -1 && blocks[nbor].isActive == false )
+			{
+				// ok, is it connected on the right side?
+				if( blocks[nbor].canConnectTo(id)
+					&& canConnectTo(nbor) )
+				{
+					blocks[nbor].propagateActive(blocks);
+				}
+			}
+		}
+	}
+
+	int activateSprite(const PinnedAssetImage& img)
+	{
+		for( int i = 0; i < 8; i++ )
+		{
+			if( !spriteInUse[i] )
+			{
+				spriteInUse[i] = true;
+				vid.sprites[i].setImage( img, 0 );
+				LOG("turning on sprite %d\n", i);
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	void updateSprite(int i, Float2 pos)
+	{
+		vid.sprites[i].move(pos);
+	}
+
+	void deactivateSprite(int i)
+	{
+		if(spriteInUse[i] )
+		{
+			spriteInUse[i] = false;
+			vid.sprites[i].hide();
+		}
+	}
+
 	void init(CubeID cube)
 	{
 			id = cube;
@@ -24,10 +81,17 @@ public:
 			vid.attach(cube);
 
 			// set up arrow sprite positions
+			/*
 			vid.sprites[TOP+1].move( centerPos(getSidePos(TOP), Arrows, true) );
 			vid.sprites[BOTTOM+1].move( centerPos(getSidePos(BOTTOM), Arrows, true) );
 			vid.sprites[RIGHT+1].move( centerPos(getSidePos(RIGHT), Arrows, true) );
 			vid.sprites[LEFT+1].move( centerPos(getSidePos(LEFT), Arrows, true) );
+			*/
+
+			for( int i = 0; i < 4; i++ )
+			{
+				spriteInUse[i] = false;
+			}
 	}
 
 	Side getExitSide(Side enterSide)
@@ -57,10 +121,6 @@ public:
 			side2CarRange[i] = rand.randint(1,3);
 		}
 
-		// Our background is 18x18 to match BG0, and it seamlessly tiles
-		int bgIdx = (int)roadType % RoadBgs.numFrames();
-		vid.bg0.image(vec(0,0), RoadBgs, bgIdx);
-
 		vid.bg1.setMask(BG1Mask::filled(vec(0,14), vec(16,2)));
 
 /*
@@ -71,22 +131,13 @@ public:
 		*/
 
 		// setup arrow sprites depending on road type
+		/*
 		for( int side = 0; side < NUM_SIDES; side++ )
 		{
 			if( !isSideConnectable((Side)side) )
 				vid.sprites[side+1].hide();
 		}
-	}
-
-	void showChicken( Float2 pos )
-	{
-		vid.sprites[0].setImage( ChickenSprites, 0 );
-		vid.sprites[0].move( pos );
-	}
-
-	void hideChicken()
-	{
-		vid.sprites[0].hide();
+		*/
 	}
 
 	void update( TimeDelta timeStep )
@@ -104,7 +155,11 @@ public:
 				break;
 		}
 
+		int bgStart = isActive ? 0 : 2;
+		vid.bg0.image(vec(0,0), RoadBgs, bgStart + roadType);
+
 		// update side graphics
+		/*
 		for( int side = 0; side < 4; side++ )
 		{
 			if( !isSideConnectable(side) )
@@ -112,6 +167,7 @@ public:
 
 			vid.sprites[side+1].setImage( Arrows, side2touch[side] );
 		}
+		*/
 	}
 
 	void writeText(const char *str)
@@ -162,6 +218,11 @@ public:
 		return vid.virtualNeighbors().sideOf(otherId);
 	}
 
+	bool canConnectTo( int otherId )
+	{
+		return isSideConnectable( vid.virtualNeighbors().sideOf(otherId) );
+	}
+
 	void resetTouchState()
 	{
 		for( int i = 0; i < 4; i++ )
@@ -171,7 +232,6 @@ public:
 	void preUpdate()
 	{
 		resetTouchState();
-		hideChicken();
 	}
 
 	void onCubeTouching(Block& other)
@@ -182,7 +242,9 @@ public:
 		if( isSideConnectable(mySide) )
 		{
 			if( other.isSideConnectable(otherSide) )
+			{
 				side2touch[mySide] = Touch_Good;		
+			}
 			else
 				side2touch[mySide] = Touch_WrongSide;
 		}
