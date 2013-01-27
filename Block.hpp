@@ -10,6 +10,8 @@ using namespace Sifteo;
 //  A single block, it can be of any type. Ie. a road, water, etc.
 //----------------------------------------
 
+const int kTurnSprite = 6;
+
 class Block
 {
 
@@ -26,6 +28,22 @@ public:
 			vid.sprites[BOTTOM+1].move( centerPos(getSidePos(BOTTOM), Arrows, true) );
 			vid.sprites[RIGHT+1].move( centerPos(getSidePos(RIGHT), Arrows, true) );
 			vid.sprites[LEFT+1].move( centerPos(getSidePos(LEFT), Arrows, true) );
+	}
+
+	Side getExitSide(Side enterSide)
+	{
+		if( roadType == Road_I )
+		{
+			return oppositeSide(enterSide);
+		}
+		else if( roadType == Road_L )
+		{
+			if( enterSide == BOTTOM )
+				return LEFT;
+			else
+				return BOTTOM;
+		}
+		return BOTTOM;
 	}
 
 	void randomize( Random& rand )
@@ -56,12 +74,9 @@ public:
 		for( int side = 0; side < NUM_SIDES; side++ )
 		{
 			if( !isSideConnectable((Side)side) )
-			{
 				vid.sprites[side+1].hide();
-			}
 		}
 	}
-
 
 	void showChicken( Float2 pos )
 	{
@@ -95,18 +110,7 @@ public:
 			if( !isSideConnectable(side) )
 				continue;
 
-			switch( side2touch[side] )
-			{
-				case Touch_None:
-					vid.sprites[side+1].setImage( Arrows, 0 );
-					break;
-				case Touch_Good:
-					vid.sprites[side+1].setImage( Arrows, 1 );
-					break;
-				case Touch_WrongSide:
-					vid.sprites[side+1].setImage( Arrows, 2 );
-					break;
-			}
+			vid.sprites[side+1].setImage( Arrows, side2touch[side] );
 		}
 	}
 
@@ -138,9 +142,8 @@ public:
 		switch(roadType)
 		{
 			case Road_I: return side == BOTTOM || side == TOP;
-			case Road_T: return side == LEFT || side == RIGHT || side == BOTTOM;
-			case Road_Cross:
-			default: return true;
+			case Road_L: return side == LEFT || side == BOTTOM;
+			default: return false;
 		}
 	}
 
@@ -189,13 +192,13 @@ public:
 
 private:
 
-	enum RoadType { Road_I, Road_T, Road_Cross, NumRoads } roadType;
+	enum RoadType { Road_I, Road_L, NumRoads } roadType;
 
 	enum SeedType { Seed_NotReady, Seed_Ready, Seed_Rotten, NumSeeds } seedType;
 
 	enum WarningType { Warning_None, Warning_NoBottom, Warning_BottomWrong, NumWarnings } warningType;
 
-	enum TouchState { Touch_None, Touch_WrongSide, Touch_Good };
+	enum TouchState { Touch_WrongSide, Touch_Good, Touch_None };
 
 	VideoBuffer vid;
 	int id;

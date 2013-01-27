@@ -1,7 +1,7 @@
 IconAssets = group{quality=9.95}
 Icon = image{"icon.png"}
 
-Music = tracker{"sv_ttt.xm"}
+Music = sound{"wavs/chicken-loop-16khz.wav"}
 
 GameAssets = group{}
 Background = image{"stars-bg.png", quality=10}

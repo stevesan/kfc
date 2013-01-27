@@ -38,6 +38,20 @@ static Float2 getSidePos(Side s)
 	return p;
 }
 
+static Float2 rot90CCW(Float2 d)
+{
+	Float2 r;
+	r.set( -d.y, d.x );
+	return r;
+}
+
+static Float2 rot90CW(Float2 d)
+{
+	Float2 r;
+	r.set( d.y, -d.x );
+	return r;
+}
+
 static Float2 centerPos( Float2 p, const AssetImage& img, bool doClamp = false )
 {
 	p.x -= img.pixelWidth()/2.0;

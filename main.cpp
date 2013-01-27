@@ -210,6 +210,8 @@ private:
 
 void main()
 {
+		AudioChannel chan(0);
+		chan.play(Music, AudioChannel::REPEAT);
     static Block blocks[gNumBlocksBuffered];
 
     for (unsigned i = 0; i < arraysize(blocks); i++)
@@ -224,7 +226,8 @@ void main()
 		float chickenSpeed = 50.0;
 		Float2 chickPoss[ gMaxNumChicks ];
 		Float2 chickenDir = {0.0, 1.0};
-		Side exitSide = BOTTOM;
+		Side enterSide = TOP;
+		bool reachedCenter = false;
 
 		for( unsigned i = 0; i < arraysize(chickBlocks); i++ )
 		{
@@ -241,9 +244,6 @@ void main()
 			// move chicken
 			chickenPos += dt * chickenSpeed * chickenDir;
 
-			float chickenDist = dot( chickenDir, chickenPos );
-			float sideDist = dot( chickenDir, getSidePos(exitSide) );
-
 			Side exitSide = NO_SIDE;
 			if( chickenPos.x < 0 )
 				exitSide = LEFT;
@@ -254,23 +254,40 @@ void main()
 			else if( chickenPos.y > 128.0 )
 				exitSide = BOTTOM;
 
+			Block& cblock = blocks[chickenBlockId];
+
+			// Chicken reached the center?
+			if( !reachedCenter )
+			{
+				Float2 center = {64, 64};
+
+				if( (chickenPos-centerPos(center,ChickenSprites)).len() < 2 )
+				{
+					reachedCenter = true;
+
+					// Redirect chicken towards the exit
+					chickenDir = sideDirection( cblock.getExitSide(enterSide) );
+					LOG("new dir = %f %f\n", chickenDir.x, chickenDir.y);
+				}
+			}
+
 			// Chicken walking to next block?
 			if( exitSide != NO_SIDE )
 			{
-				Block& block = blocks[chickenBlockId];
 
-				if( block.isSideConnected(exitSide) )
+				if( cblock.isSideConnected(exitSide) )
 				{
 					// reset old one
-					block.randomize(gRandom);
+					cblock.randomize(gRandom);
 
-					// move to bottom block
+					// move to bottom cblock
 					int oldChickenBlockId = chickenBlockId;
-					chickenBlockId = block.getNbor(exitSide);
+					chickenBlockId = cblock.getNbor(exitSide);
+					reachedCenter = false;
 
 					// update exit side
 					Block& newBlock = blocks[chickenBlockId];
-					Side enterSide = newBlock.getSideOf(oldChickenBlockId);
+					enterSide = newBlock.getSideOf(oldChickenBlockId);
 					chickenDir = -1 * sideDirection(enterSide);
 
 					chickenPos = centerPos(
