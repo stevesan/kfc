@@ -86,17 +86,17 @@ public:
 
 	void logSprites()
 	{
-	LOG("cube %d: ", cubeId);
+	//LOG("cube %d: ", cubeId);
 		for( int i = 0; i < arraysize(spriteInUse); i++ )
 		{
-			LOG("%d, ", spriteInUse[i]);
+			//LOG("%d, ", spriteInUse[i]);
 		}
-		LOG("\n");
+		//LOG("\n");
 	}
 
 	void deactivateSprite(int sid)
 	{
-	LOG("cube %d deac %d\n", cubeId, sid);
+	//LOG("cube %d deac %d\n", cubeId, sid);
 		if( sid == -1 ) return;
 
 		if(spriteInUse[sid])
@@ -162,6 +162,7 @@ public:
 		}
 
 		roadType = (RoadType)rand.randint( 0, NumRoads-1 );
+
 		seedType = (SeedType)rand.randint( 0, NumSeeds-1 );
 
 		for( int i = 0; i < 4; i++ )
@@ -178,9 +179,9 @@ public:
 		if(hasSeed)
 		{
 			seedSpriteId = activateSprite(Seed);
-			LOG("cube %d seed sprite = %d\n", cubeId, seedSpriteId);
+			//LOG("cube %d seed sprite = %d\n", cubeId, seedSpriteId);
 			Float2 c = {64, 64};
-			vid.sprites[seedSpriteId].move(c);
+			vid.sprites[seedSpriteId].move(toSpritePos(c,Seed));
 		}
 
 /*
@@ -215,8 +216,11 @@ public:
 				break;
 		}
 
-		int bgStart = isActive ? 0 : 2;
-		vid.bg0.image(vec(0,0), RoadBgs, bgStart + roadType);
+		if(roadType == Road_I )
+			vid.bg0.image(vec(0,0), isActive?RoadI : RoadIgray, 0);
+		else if(roadType == Road_L )
+			vid.bg0.image(vec(0,0), isActive? RoadL : RoadLgray, 0);
+
 
 		// update side graphics
 		/*

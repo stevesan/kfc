@@ -9,6 +9,7 @@ using namespace Sifteo;
 
 #include "Utils.hpp"
 #include "Block.hpp"
+#include "Anim.hpp"
 
 //----------------------------------------
 //  
@@ -20,6 +21,28 @@ static const unsigned gMaxNumChicks = 24;
 Block gBlocks[ gNumCubes ];
 
 Random gRandom;
+
+enum { Anim_ChickenWalk, Anim_ChickWalk, Anim_Hatch, NumAnims };
+
+Animation gAnims[NumAnims];
+
+void gInitAnims()
+{
+	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 0 );
+	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 1 );
+	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 2 );
+
+	gAnims[Anim_ChickWalk].addFrame( AnimChick, 0 );
+	gAnims[Anim_ChickWalk].addFrame( AnimChick, 1 );
+	gAnims[Anim_ChickWalk].addFrame( AnimChick, 2 );
+	gAnims[Anim_ChickWalk].fps = 8.0;
+
+	gAnims[Anim_Hatch].addFrame( AnimChick, 10 );
+	gAnims[Anim_Hatch].addFrame( AnimChick, 11 );
+	gAnims[Anim_Hatch].addFrame( AnimChick, 12 );
+	gAnims[Anim_Hatch].addFrame( AnimChick, 13 );
+	gAnims[Anim_Hatch].fps = 8.0;
+}
 
 //----------------------------------------
 //  
@@ -47,7 +70,8 @@ class Entity
 		enum { Entity_Unused, Entity_Hatching, Entity_Alive, Entity_Dead } state;
 		Side enterSide;
 		bool reachedCenter;
-		float hatchingTime = 0.0;
+
+		AnimPlayer animer;
 
 		Entity() :
 			type(Type_Chicken),
@@ -57,8 +81,10 @@ class Entity
 
 		const PinnedAssetImage& getCurrentImage()
 		{
-			if( type == Type_Chicken ) return Chicken;
-			else return Chick;
+			if( animer.anim == NULL )
+				return AnimChick;
+			else
+				return *animer.getCurrAsset();
 		}
 
 		void reset(Block* blocks)
@@ -71,6 +97,8 @@ class Entity
 
 			blockId = -1;
 			state = Entity_Unused;
+
+			animer.anim = &gAnims[ Anim_ChickWalk ];
 		}
 
 		Float2 getCenter()
@@ -87,12 +115,14 @@ class Entity
 		{
 			if( isHatch )
 			{
+				animer.setAnim( &gAnims[Anim_Hatch], false );
 				state = Entity_Hatching;
 				type = Type_Chick;
-				hatchingTime = 0.0;
 			}
 			else
 			{
+				/*TODO: change to chicken*/
+				animer.setAnim( &gAnims[Anim_ChickWalk], true );
 				state = Entity_Alive;
 			}
 
@@ -108,7 +138,7 @@ class Entity
 			Block& newBlock = blocks[blockId];
 
 			spriteId = newBlock.activateSprite(getCurrentImage());
-			LOG("ent sprite = %d\n", spriteId);
+			//LOG("ent sprite = %d\n", spriteId);
 			newBlock.updateSprite(spriteId, getSpritePos());
 
 			if( oldBid != -1 )
@@ -147,13 +177,24 @@ class Entity
 		{
 			UpdateResult rv;
 
+			animer.update(dt);
+
+			if( state != Entity_Unused )
+			{
+				Block& blk = blocks[blockId];
+				const Frame& f = animer.getCurrFrame();
+				if( f.asset != NULL )
+				{
+					blk.updateSprite( spriteId, *f.asset, f.frameNum );
+				}
+			}
+
 			if( state == Entity_Hatching )
 			{
-				hatchingTime += dt;
-
-				if( hatchingTime > gHatchTime )
+				if( animer.getIsDone() )
 				{
-					blocks[blockId].updateSprite( spriteId, getCurrentImage(), 0 );
+					// hatched!
+					animer.setAnim( &gAnims[Anim_ChickWalk], true );
 					state = Entity_Alive;
 					rv.didHatch = true;
 				}
@@ -362,6 +403,9 @@ public:
 				chick.dir = parent.dir;
 				chick.enterSide = parent.enterSide;
 				//LOG("hatching\n");
+
+				effectsChan.stop();
+				effectsChan.play( HatchSnd );
 			}
 		}
 
@@ -377,8 +421,8 @@ public:
 
 			if( crv2.didHatch )
 			{
-				effectsChan.stop();
-				effectsChan.play( HatchSnd );
+				//effectsChan.stop();
+				//effectsChan.play( HatchSnd );
 			}
 		}
 
@@ -468,17 +512,18 @@ private:
 
 void main()
 {
+	gInitAnims();
 
-		State state;
-		state.reset();
-    
-    TimeStep ts;
-    while (1)
-		{
-			float dt = (float)ts.delta();
-			State::UpdateResult rv = state.update( dt );
+	State state;
+	state.reset();
 
-			System::paint();
-			ts.next();
-    }
+	TimeStep ts;
+	while (1)
+	{
+		float dt = (float)ts.delta();
+		State::UpdateResult rv = state.update( dt );
+
+		System::paint();
+		ts.next();
+	}
 }
