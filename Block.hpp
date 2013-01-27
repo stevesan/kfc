@@ -17,7 +17,7 @@ class Block
 
 public:
 
-	Block() : isActive(false)
+	Block() : isActive(false), hasSeed(false), seedSpriteId(-1)
 	{
 	}
 
@@ -45,7 +45,7 @@ public:
 			if( nbor != -1 && blocks[nbor].isActive == false )
 			{
 				// ok, is it connected on the right side?
-				if( blocks[nbor].canConnectTo(id)
+				if( blocks[nbor].canConnectTo(cubeId)
 					&& canConnectTo(nbor) )
 				{
 					blocks[nbor].propagateActive(blocks);
@@ -56,41 +56,59 @@ public:
 
 	int activateSprite(const PinnedAssetImage& img)
 	{
-		for( int i = 0; i < 8; i++ )
+		logSprites();
+		for( int sid = 0; sid < arraysize(spriteInUse); sid++ )
 		{
-			if( !spriteInUse[i] )
+			if( !spriteInUse[sid] )
 			{
-				spriteInUse[i] = true;
-				vid.sprites[i].setImage( img, 0 );
+				spriteInUse[sid] = true;
+				vid.sprites[sid].setImage( img, 0 );
+				logSprites();
 				//LOG("turning on sprite %d\n", i);
-				return i;
+				return sid;
 			}
 		}
+				logSprites();
 		return -1;
 	}
 
-	void updateSprite(int i, Float2 pos)
+	void updateSprite(int sid, Float2 pos)
 	{
-		vid.sprites[i].move(pos);
+		if( sid == -1 ) return;
+		vid.sprites[sid].move(pos);
 	}
 
-	void updateSprite( int i, const PinnedAssetImage& img, int frame )
+	void updateSprite( int sid, const PinnedAssetImage& img, int frame )
 	{
-		vid.sprites[i].setImage( img, frame );
+		if( sid == -1 ) return;
+		vid.sprites[sid].setImage( img, frame );
 	}
 
-	void deactivateSprite(int i)
+	void logSprites()
 	{
-		if(spriteInUse[i] )
+	LOG("cube %d: ", cubeId);
+		for( int i = 0; i < arraysize(spriteInUse); i++ )
 		{
-			spriteInUse[i] = false;
-			vid.sprites[i].hide();
+			LOG("%d, ", spriteInUse[i]);
+		}
+		LOG("\n");
+	}
+
+	void deactivateSprite(int sid)
+	{
+	LOG("cube %d deac %d\n", cubeId, sid);
+		if( sid == -1 ) return;
+
+		if(spriteInUse[sid])
+		{
+			spriteInUse[sid] = false;
+			vid.sprites[sid].hide();
 		}
 	}
 
 	void init(CubeID cube)
 	{
-			id = cube;
+			cubeId = cube;
 			vid.initMode(BG0_SPR_BG1);
 			vid.attach(cube);
 
@@ -102,7 +120,7 @@ public:
 			vid.sprites[LEFT+1].move( getSpritePos(getSidePos(LEFT), Arrows, true) );
 			*/
 
-			for( int i = 0; i < 4; i++ )
+			for( int i = 0; i < arraysize(spriteInUse); i++ )
 			{
 				spriteInUse[i] = false;
 			}
@@ -130,14 +148,17 @@ public:
 		{
 			hasSeed = false;
 			deactivateSprite(seedSpriteId);
+			seedSpriteId = -1;
 		}
 	}
 
 	void randomize( Random& rand )
 	{
+		logSprites();
 		if( seedSpriteId != -1 )
 		{
 			deactivateSprite(seedSpriteId);
+			seedSpriteId = -1;
 		}
 
 		roadType = (RoadType)rand.randint( 0, NumRoads-1 );
@@ -157,6 +178,7 @@ public:
 		if(hasSeed)
 		{
 			seedSpriteId = activateSprite(Seed);
+			LOG("cube %d seed sprite = %d\n", cubeId, seedSpriteId);
 			Float2 c = {64, 64};
 			vid.sprites[seedSpriteId].move(c);
 		}
@@ -274,8 +296,8 @@ public:
 
 	void onCubeTouching(Block& other)
 	{
-		Side mySide = getSideOf(other.id);
-		Side otherSide = other.getSideOf(id);
+		Side mySide = getSideOf(other.cubeId);
+		Side otherSide = other.getSideOf(cubeId);
 
 		if( isSideConnectable(mySide) )
 		{
@@ -301,7 +323,7 @@ private:
 	enum TouchState { Touch_WrongSide, Touch_Good, Touch_None };
 
 	VideoBuffer vid;
-	int id;
+	int cubeId;
 
 	bool side2HasCar[4];
 	int side2CarRange[4];

@@ -15,9 +15,9 @@ using namespace Sifteo;
 //----------------------------------------
 static const float gHatchTime = 0.8;
 static const int gSeedsPerHatch = 1;
-static const unsigned gNumBlocksBuffered = 6;
+static const unsigned gNumCubes = 6;
 static const unsigned gMaxNumChicks = 24;
-Block gBlocks[ gNumBlocksBuffered ];
+Block gBlocks[ gNumCubes ];
 
 Random gRandom;
 
@@ -31,7 +31,7 @@ static Metadata M = Metadata()
     .title("Chicken Run, GGJ2013")
     .package("com.sifteo.sdk.stars", "1.0")
     .icon(Icon)
-    .cubeRange(gNumBlocksBuffered);
+    .cubeRange(gNumCubes);
 
 class Entity
 {
@@ -66,9 +66,9 @@ class Entity
 			if( blockId != -1 && spriteId != -1)
 			{
 				blocks[blockId].deactivateSprite(spriteId);
+				spriteId = -1;
 			}
 
-			spriteId = -1;
 			blockId = -1;
 			state = Entity_Unused;
 		}
@@ -78,9 +78,9 @@ class Entity
 			return centerPos;
 		}
 
-		Float getSpritePos()
+		Float2 getSpritePos()
 		{
-			return getSpritePos( centerPos, getCurrentImage() );
+			return toSpritePos( centerPos, getCurrentImage() );
 		}
 
 		void moveToBlock( Block* blocks, int newBid, bool isHatch = false )
@@ -96,9 +96,11 @@ class Entity
 				state = Entity_Alive;
 			}
 
-			if( blockId != -1 )
+			if( blockId != -1 && spriteId != -1 )
 			{
 				blocks[blockId].deactivateSprite(spriteId);
+				spriteId = -1;
+				LOG("deact'd block %d sprite %d\n", blockId, spriteId );
 			}
 
 			int oldBid = blockId;
@@ -106,7 +108,8 @@ class Entity
 			Block& newBlock = blocks[blockId];
 
 			spriteId = newBlock.activateSprite(getCurrentImage());
-			newBlock.updateSprite(spriteId, pos);
+			LOG("ent sprite = %d\n", spriteId);
+			newBlock.updateSprite(spriteId, getSpritePos());
 
 			if( oldBid != -1 )
 				enterSide = newBlock.getSideOf(oldBid);
@@ -117,9 +120,7 @@ class Entity
 
 			if( !isHatch )
 			{
-				pos = getSpritePos(
-						getSidePos(enterSide),
-						getCurrentImage(), true );
+				centerPos = getSidePos(enterSide);
 			}
 
 			reachedCenter = false;
@@ -160,8 +161,8 @@ class Entity
 			else if( state == Entity_Alive )
 			{
 				Block& blk = blocks[blockId];
-				pos += dt * speed * dir;
-				blk.updateSprite( spriteId, pos );
+				centerPos += dt * speed * dir;
+				blk.updateSprite( spriteId, getSpritePos() );
 
 				// Chicken reached the center?
 				if( !reachedCenter )
@@ -189,13 +190,13 @@ class Entity
 
 				// Did we exit?
 				Side exitSide = NO_SIDE;
-				if( pos.x < 0 )
+				if( centerPos.x < 0 )
 					exitSide = LEFT;
-				else if( pos.x > 128.0 )
+				else if( centerPos.x > 128.0 )
 					exitSide = RIGHT;
-				else if( pos.y < 0 )
+				else if( centerPos.y < 0 )
 					exitSide = TOP;
-				else if( pos.y > 128.0 )
+				else if( centerPos.y > 128.0 )
 					exitSide = BOTTOM;
 
 				// Chicken walking to next block?
@@ -209,10 +210,6 @@ class Entity
 					}
 					else
 					{
-						// game over! do nothing for now
-						pos = getSpritePos(
-								getSidePos(oppositeSide(exitSide)),
-								getCurrentImage(), true );
 						state = Entity_Dead;
 					}
 				}
@@ -228,33 +225,32 @@ class State
 {
 public:
 
-	AudioChannel musicChan, effectsChan;
+	AudioChannel musicChan, effectsChan, seedChan;
 
 	enum { State_Playing, State_GameOver } state;
 	Entity chicken;
-	Entity chicks[6];
+	Entity chicks[gNumCubes];
 	int nextUnusedChick;
-	Block blocks[gNumBlocksBuffered];
+	Block blocks[gNumCubes];
 	int lastChickenBlock;
 	int numSeeds;
 
 	float gameOverTime = 0.0;
 
 	State() :
-		musicChan(0), effectsChan(1),
+		musicChan(0), effectsChan(1), seedChan(2),
 		state(State_Playing) ,
 		nextUnusedChick(0),
 		lastChickenBlock(0)
+	{
+		for (unsigned i = 0; i < arraysize(blocks); i++)
 		{
+			blocks[i].init(i);
 		}
+	}
 
 	void reset()
 	{
-    for (unsigned i = 0; i < arraysize(blocks); i++)
-		{
-        blocks[i].init(i);
-				blocks[i].randomize(gRandom);
-		}
 
 		chicken.reset(blocks);
 		for( int i = 0; i < arraysize(chicks); i++ )
@@ -275,6 +271,11 @@ public:
 		numSeeds = 0;
 		state = State_Playing;
 		musicChan.play(Music, AudioChannel::REPEAT);
+
+		for (unsigned i = 0; i < arraysize(blocks); i++)
+		{
+			blocks[i].randomize(gRandom);
+		}
 	}
 
 	void triggerGameOver()
@@ -344,7 +345,8 @@ public:
 		lastChickenBlock = chicken.blockId;
 		if( crv.gotSeed )
 		{
-			effectsChan.play(EatSeedSnd);
+			seedChan.stop();
+			seedChan.play(EatSeedSnd);
 			numSeeds++;
 			//LOG("got seed, now %d\n", numSeeds);
 
@@ -374,7 +376,10 @@ public:
 				randomizeBlockIfUnused(crv2.oldBlockId);
 
 			if( crv2.didHatch )
+			{
+				effectsChan.stop();
 				effectsChan.play( HatchSnd );
+			}
 		}
 
 		// check death
@@ -393,12 +398,14 @@ public:
 			{
 				rv.chickenDied = true;
 				musicChan.stop();
+				effectsChan.stop();
 				effectsChan.play(ChickenDiedSnd);
 			}
 			else
 			{
 				rv.chickDied = true;
 				musicChan.stop();
+				effectsChan.stop();
 				effectsChan.play(ChickDiedSnd);
 			}
 		}
@@ -421,6 +428,7 @@ public:
 					LOG("chick %d died due to block %d in active\n", i, chicks[i].blockId );
 					triggerGameOver();
 					musicChan.stop();
+					effectsChan.stop();
 					effectsChan.play(ChickDiedSnd);
 				}
 			}

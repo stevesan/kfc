@@ -52,7 +52,7 @@ static Float2 rot90CW(Float2 d)
 	return r;
 }
 
-static Float2 getSpritePos( Float2 p, const AssetImage& img, bool doClamp = false )
+static Float2 toSpritePos( Float2 p, const AssetImage& img, bool doClamp = false )
 {
 	p.x -= img.pixelWidth()/2.0;
 	p.y -= img.pixelHeight()/2.0;
