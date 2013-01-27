@@ -17,12 +17,14 @@ using namespace Sifteo;
 static const float gHatchTime = 0.8;
 static const int gSeedsPerHatch = 1;
 static const unsigned gNumCubes = 6;
-static const unsigned gMaxNumChicks = 24;
+static const unsigned gMaxChicks = 24;
 Block gBlocks[ gNumCubes ];
 
 Random gRandom;
 
-enum { Anim_ChickenWalk,
+enum {
+Anim_ChickenWalk,
+Anim_ChickenWalkLeft,
 Anim_ChickWalk,
 Anim_ChickWalkRight,
 Anim_ChickWalkLeft,
@@ -36,9 +38,13 @@ Animation gAnims[NumAnims];
 
 void gInitAnims()
 {
-	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 0 );
-	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 1 );
-	//gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 2 );
+	gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 0 );
+	gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 1 );
+	gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 2 );
+	gAnims[Anim_ChickenWalk].fps = 8.0;
+	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChick, 3 );
+	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChick, 4 );
+	gAnims[Anim_ChickenWalkLeft].fps = 8.0;
 
 	gAnims[Anim_ChickWalk].addFrame( AnimChick, 0 );
 	gAnims[Anim_ChickWalk].addFrame( AnimChick, 1 );
@@ -87,7 +93,8 @@ class Entity
 {
 	public:
 
-	enum {Type_Chicken, Type_Chick, NumTypes} type;
+		enum {Type_Chicken, Type_Chick, NumTypes} type;
+
 		int spriteId;	// within the block's sprites
 		Float2 centerPos;
 		Float2 dir;
@@ -99,10 +106,12 @@ class Entity
 		bool reachedCenter;
 
 		AnimPlayer animer;
+		unsigned speedModBlocksLeft;
 
 		Entity() :
 			type(Type_Chicken),
-			spriteId(-1), blockId(-1), state(Entity_Unused)
+			spriteId(-1), blockId(-1), state(Entity_Unused),
+			speedModBlocksLeft(0)
 			{
 			}
 
@@ -113,6 +122,10 @@ class Entity
 			else
 				return *animer.getCurrAsset();
 		}
+
+
+		unsigned getDownAnim() { return type == Type_Chicken ? Anim_ChickenWalk : Anim_ChickWalk; }
+		unsigned getLeftAnim() { return type == Type_Chicken ? Anim_ChickenWalkLeft : Anim_ChickWalkLeft; }
 
 		void reset(Block* blocks)
 		{
@@ -125,7 +138,7 @@ class Entity
 			blockId = -1;
 			state = Entity_Unused;
 
-			animer.anim = &gAnims[ Anim_ChickWalk ];
+			animer.anim = &gAnims[ getDownAnim() ];
 		}
 
 		Float2 getCenter()
@@ -186,13 +199,13 @@ class Entity
 		class UpdateResult
 		{
 		public:
-			bool gotSeed;
+			Block::SeedType seedType;
 			bool leftBlock;
 			int oldBlockId;
 			bool didHatch;
 
 			UpdateResult() :
-				gotSeed(false),
+				seedType(Block::Seed_None),
 				leftBlock(false),
 				oldBlockId(-1),
 				didHatch( false)
@@ -245,7 +258,7 @@ class Entity
 
 						if( type == Type_Chicken && blk.hasSeed )
 						{
-							rv.gotSeed = true;
+							rv.seedType = blk.seedType;
 							blk.takeSeed();
 							LOG("Got seed\n");
 						}
@@ -256,9 +269,9 @@ class Entity
 						LOG("new dir = %f %f\n", dir.x, dir.y);
 
 						if( exitSide == LEFT )
-							animer.setAnim( &gAnims[Anim_ChickWalkLeft], true );
+							animer.setAnim( &gAnims[getLeftAnim()], true );
 						else 
-							animer.setAnim( &gAnims[Anim_ChickWalk], true );
+							animer.setAnim( &gAnims[getDownAnim()], true );
 					}
 				}
 
@@ -313,19 +326,24 @@ public:
 
 	enum { State_Playing, State_GameOver } state;
 	Entity chicken;
-	Entity chicks[gNumCubes];
+	Entity chicks[gMaxChicks];
 	int nextUnusedChick;
 	Block blocks[gNumCubes];
 	int lastChickenBlock;
 	int numSeeds;
 
 	float gameOverTime = 0.0;
+	int blocksTilResetSpeed;
+	float baseSpeed = 40.0;
+	float baseSpeedAccel = 10.0;
+	float totalPlayTime = 0.0;
 
 	State() :
 		musicChan(0), effectsChan(1), seedChan(2),
 		state(State_Playing) ,
 		nextUnusedChick(0),
-		lastChickenBlock(0)
+		lastChickenBlock(0),
+		blocksTilResetSpeed(0)
 	{
 		for (unsigned i = 0; i < arraysize(blocks); i++)
 		{
@@ -333,8 +351,18 @@ public:
 		}
 	}
 
+	void setSpeeds( float delta )
+	{
+			chicken.speed = baseSpeed + delta;
+			for( int i = 0; i < arraysize(chicks); i++ )
+				chicks[i].speed = baseSpeed + delta;
+	}
+
 	void reset()
 	{
+		baseSpeed = 40.0;
+		totalPlayTime = 0.0;
+		setSpeeds(0.0);
 
 		chicken.reset(blocks);
 		for( int i = 0; i < arraysize(chicks); i++ )
@@ -344,12 +372,12 @@ public:
 		nextUnusedChick = 0;
 
 		chicken.type = Entity::Type_Chicken;
-		chicken.speed = 50.0;
+		chicken.speed = 40.0;
 		chicken.moveToBlock( blocks, lastChickenBlock );
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
-			chicks[i].speed = 50.0;
+			chicks[i].speed = 40.0;
 		}
 
 		numSeeds = 0;
@@ -360,6 +388,8 @@ public:
 		{
 			blocks[i].randomize(gRandom);
 		}
+
+		blocksTilResetSpeed = 0;
 	}
 
 	void triggerGameOver()
@@ -368,16 +398,14 @@ public:
 		gameOverTime = 0.0;
 		for( int i = 0; i < arraysize(blocks); i++ )
 		{
-			blocks[i].onGameOver();
+			blocks[i].onGameOver((int)totalPlayTime);
 		}
 	}
 
 	void randomizeBlockIfUnused(int blockId)
 	{
-	LOG("maybe randomize block %d\n", blockId);
 		if( chicken.blockId == blockId )
 			return;
-	LOG("not used by chicken %d\n", blockId);
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
@@ -420,7 +448,7 @@ public:
 
 		UpdateResult rv;
 		gameOverTime += dt;
-		if( gameOverTime > 1.0 )
+		if( gameOverTime > 2.0 )
 		{
 			reset();
 		}
@@ -431,9 +459,16 @@ public:
 	{
 		UpdateResult rv;
 
+		totalPlayTime += dt;
+		baseSpeed = 40.0 + totalPlayTime*baseSpeedAccel;
+		if( blocksTilResetSpeed <= 0 )
+			setSpeeds(0.0);
+
+
 		Entity::UpdateResult crv = chicken.update(blocks, dt);
 		lastChickenBlock = chicken.blockId;
-		if( crv.gotSeed )
+
+		if( crv.seedType != Block::Seed_None )
 		{
 			seedChan.stop();
 			seedChan.play(EatSeedSnd);
@@ -442,7 +477,7 @@ public:
 
 			if( numSeeds >= gSeedsPerHatch && nextUnusedChick < arraysize(chicks) )
 			{
-				// HATCH
+				// HATCH A CHICK
 				Entity& parent = ( nextUnusedChick == 0 ? chicken : chicks[nextUnusedChick-1] );
 				Entity& chick = chicks[nextUnusedChick++];
 
@@ -456,10 +491,29 @@ public:
 				effectsChan.stop();
 				effectsChan.play( HatchSnd );
 			}
+
+			if( crv.seedType == Block::Seed_Green )
+			{
+				blocksTilResetSpeed = 2;
+				setSpeeds(20.0);
+			}
+			else if( crv.seedType == Block::Seed_Red )
+			{
+				blocksTilResetSpeed = 2;
+				setSpeeds(-10.0);
+			}
 		}
 
 		if( crv.leftBlock )
+		{
 			randomizeBlockIfUnused(crv.oldBlockId);
+
+			blocksTilResetSpeed--;
+			if( blocksTilResetSpeed == 0 )
+			{
+				setSpeeds(0.0);
+			}
+		}
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{

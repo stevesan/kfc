@@ -17,22 +17,27 @@ class Block
 
 public:
 
-	Block() : isActive(false), hasSeed(false), seedSpriteId(-1)
+	Block() : isActive(false), hasSeed(false), seedSpriteId(-1), carSID(-1)
 	{
 	}
 
-	void onGameOver()
+	void onGameOver(int seconds)
 	{
-		writeText("GAME OVER 12345");
-		isActive = false;
+		String<64> out;
+		out << "LASTED " << seconds << " SECS";
+		writeText( out );
 	}
 
 	bool spriteInUse[8];
+
+	Side carSide;
 
 	bool isActive;
 
 	bool hasSeed;
 	int seedSpriteId;
+	int carSID;
+	enum SeedType { Seed_Normal, Seed_Green, Seed_Red, Seed_None, NumSeeds } seedType;
 
 	void propagateActive(Block* blocks)
 	{
@@ -121,9 +126,7 @@ public:
 			*/
 
 			for( int i = 0; i < arraysize(spriteInUse); i++ )
-			{
 				spriteInUse[i] = false;
-			}
 	}
 
 	Side getExitSide(Side enterSide)
@@ -154,31 +157,49 @@ public:
 
 	void randomize( Random& rand )
 	{
-		logSprites();
 		if( seedSpriteId != -1 )
 		{
 			deactivateSprite(seedSpriteId);
 			seedSpriteId = -1;
 		}
 
+		if( carSID != -1 )
+		{
+			deactivateSprite(carSID);
+			carSID = -1;
+		}
+
 		roadType = (RoadType)rand.randint( 0, NumRoads-1 );
 
 		seedType = (SeedType)rand.randint( 0, NumSeeds-1 );
 
-		for( int i = 0; i < 4; i++ )
+		carSide = NO_SIDE;
+		/*
+		carSide = (Side)rand.randint( 0, (int)NUM_SIDES );
+		if(carSide == NUM_SIDES) carSide = NO_SIDE;
+		if( carSide != NO_SIDE )
 		{
-			side2HasCar[i] = rand.chance(0.5f);
-			side2CarRange[i] = rand.randint(1,3);
+			carSID = activateSprite(Car);
+			updateSprite( carSID, Car, (int)oppositeSide(carSide) );
+			updateSprite( carSID, toSpritePos( getSidePos(carSide), Car, true) );
 		}
+		*/
 
+		// text mask
 		vid.bg1.setMask(BG1Mask::filled(vec(0,14), vec(16,2)));
 
 		// TEMP hasSeed = rand.randint(0,1);
-		hasSeed = true;
+		hasSeed = seedType != Seed_None;
 
 		if(hasSeed)
 		{
-			seedSpriteId = activateSprite(Seed);
+			if( seedType == Seed_Normal )
+				seedSpriteId = activateSprite(Seed);
+			else if( seedType == Seed_Red )
+				seedSpriteId = activateSprite(RedSeed);
+			else if( seedType == Seed_Green )
+				seedSpriteId = activateSprite(GreenSeed);
+
 			//LOG("cube %d seed sprite = %d\n", cubeId, seedSpriteId);
 			Float2 c = {64, 64};
 			vid.sprites[seedSpriteId].move(toSpritePos(c,Seed));
@@ -321,7 +342,6 @@ private:
 
 	enum RoadType { Road_I, Road_L, NumRoads } roadType;
 
-	enum SeedType { Seed_NotReady, Seed_Ready, Seed_Rotten, NumSeeds } seedType;
 
 	enum WarningType { Warning_None, Warning_NoBottom, Warning_BottomWrong, NumWarnings } warningType;
 
@@ -330,8 +350,6 @@ private:
 	VideoBuffer vid;
 	int cubeId;
 
-	bool side2HasCar[4];
-	int side2CarRange[4];
 	TouchState side2touch[4];
 
 
