@@ -129,8 +129,13 @@ class Entity
 			bool gotSeed;
 			bool leftBlock;
 			int oldBlockId;
+			bool didHatch;
 
-			UpdateResult() : gotSeed(false), leftBlock(false), oldBlockId(-1)
+			UpdateResult() :
+				gotSeed(false),
+				leftBlock(false),
+				oldBlockId(-1),
+				didHatch( false)
 			{
 			}
 		};
@@ -147,6 +152,7 @@ class Entity
 				{
 					blocks[blockId].updateSprite( spriteId, getCurrentImage(), 0 );
 					state = Entity_Alive;
+					rv.didHatch = true;
 				}
 			}
 			else if( state == Entity_Alive )
@@ -159,8 +165,10 @@ class Entity
 				if( !reachedCenter )
 				{
 					Float2 center = {64, 64};
+					float centerDist = dot(center, dir);
+					float entityDist = dot(dir, getCenter());
 
-					if( (pos-centerPos(center,getCurrentImage())).len() < 2 )
+					if( entityDist > centerDist )
 					{
 						reachedCenter = true;
 
@@ -218,6 +226,8 @@ class State
 {
 public:
 
+	AudioChannel musicChan, effectsChan;
+
 	enum { State_Playing, State_GameOver } state;
 	Entity chicken;
 	Entity chicks[6];
@@ -226,7 +236,10 @@ public:
 	int lastChickenBlock;
 	int numSeeds;
 
+	float gameOverTime = 0.0;
+
 	State() :
+		musicChan(0), effectsChan(1),
 		state(State_Playing) ,
 		nextUnusedChick(0),
 		lastChickenBlock(0)
@@ -261,11 +274,13 @@ public:
 
 		numSeeds = 0;
 		state = State_Playing;
+		musicChan.play(Music, AudioChannel::REPEAT);
 	}
 
 	void triggerGameOver()
 	{
 		state = State_GameOver;
+		gameOverTime = 0.0;
 		for( int i = 0; i < arraysize(blocks); i++ )
 		{
 			blocks[i].onGameOver();
@@ -285,16 +300,51 @@ public:
 				return;
 		}
 
-LOG("randomizing block %d\n", blockId);
+		//LOG("randomizing block %d\n", blockId);
 		blocks[blockId].randomize(gRandom);
 	}
 
-	void update(float dt)
+	struct UpdateResult
 	{
-		Entity::UpdateResult rv = chicken.update(blocks, dt);
-		lastChickenBlock = chicken.blockId;
-		if( rv.gotSeed )
+		bool chickDied, chickenDied;
+		UpdateResult() : chickDied(false), chickenDied(false)
 		{
+		}
+	};
+
+	UpdateResult update(float dt)
+	{
+		if( state == State_Playing )
+		{
+			return updatePlaying(dt);
+		}
+		else if( state == State_GameOver )
+		{
+			return updateGameOver(dt);
+		}
+		return UpdateResult();
+	}
+
+	UpdateResult updateGameOver(float dt)
+	{
+		UpdateResult rv;
+		gameOverTime += dt;
+		if( gameOverTime > 1.0 )
+		{
+			reset();
+		}
+		return rv;
+	}
+
+	UpdateResult updatePlaying(float dt)
+	{
+		UpdateResult rv;
+
+		Entity::UpdateResult crv = chicken.update(blocks, dt);
+		lastChickenBlock = chicken.blockId;
+		if( crv.gotSeed )
+		{
+			effectsChan.play(EatSeedSnd);
 			numSeeds++;
 			//LOG("got seed, now %d\n", numSeeds);
 
@@ -313,19 +363,23 @@ LOG("randomizing block %d\n", blockId);
 			}
 		}
 
-		if( rv.leftBlock )
-			randomizeBlockIfUnused(rv.oldBlockId);
+		if( crv.leftBlock )
+			randomizeBlockIfUnused(crv.oldBlockId);
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
-			Entity::UpdateResult rv = chicks[i].update(blocks, dt);
+			Entity::UpdateResult crv2 = chicks[i].update(blocks, dt);
 
-			if( rv.leftBlock )
-				randomizeBlockIfUnused(rv.oldBlockId);
+			if( crv2.leftBlock )
+				randomizeBlockIfUnused(crv2.oldBlockId);
+
+			if( crv2.didHatch )
+				effectsChan.play( HatchSnd );
 		}
 
 		// check death
 		bool anyDead = chicken.isDead();
+
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
 			anyDead = anyDead || chicks[i].isDead();
@@ -334,6 +388,19 @@ LOG("randomizing block %d\n", blockId);
 		if( anyDead )
 		{
 			triggerGameOver();
+
+			if( chicken.isDead() )
+			{
+				rv.chickenDied = true;
+				musicChan.stop();
+				effectsChan.play(ChickenDiedSnd);
+			}
+			else
+			{
+				rv.chickDied = true;
+				musicChan.stop();
+				effectsChan.play(ChickDiedSnd);
+			}
 		}
 		else
 		{
@@ -353,6 +420,8 @@ LOG("randomizing block %d\n", blockId);
 				{
 					LOG("chick %d died due to block %d in active\n", i, chicks[i].blockId );
 					triggerGameOver();
+					musicChan.stop();
+					effectsChan.play(ChickDiedSnd);
 				}
 			}
 
@@ -377,11 +446,8 @@ LOG("randomizing block %d\n", blockId);
 			}
 
 		}
-	}
 
-	bool isGameOver()
-	{
-		return state == State_GameOver;
+		return rv;
 	}
 
 	bool isPlaying()
@@ -394,36 +460,15 @@ private:
 
 void main()
 {
-		AudioChannel chan(0);
-		chan.play(Music, AudioChannel::REPEAT);
 
 		State state;
-		float gameOverTime = 0.0;
 		state.reset();
     
     TimeStep ts;
     while (1)
 		{
 			float dt = (float)ts.delta();
-
-			if( state.isPlaying() )
-			{
-				state.update( dt );
-
-				if( state.isGameOver() )
-				{
-					gameOverTime = 0.0;
-				}
-			}
-			else if( state.isGameOver() )
-			{
-				gameOverTime += dt;
-				if( gameOverTime > 5.0 )
-				{
-					LOG("game over time = %f\n", gameOverTime);
-					state.reset();
-				}
-			}
+			State::UpdateResult rv = state.update( dt );
 
 			System::paint();
 			ts.next();

@@ -2,6 +2,10 @@ IconAssets = group{quality=9.95}
 Icon = image{"icon.png"}
 
 Music = sound{"wavs/chicken-loop-16khz.wav"}
+ChickenDiedSnd = sound{"wavs/chicken-chickendies.wav"}
+ChickDiedSnd = sound{"wavs/chicken-chickdies.wav"}
+EatSeedSnd = sound{"wavs/chicken-eatseed.wav"}
+HatchSnd = sound{"wavs/chicken-chickegghatch.wav"}
 
 GameAssets = group{}
 Background = image{"stars-bg.png", quality=10}
