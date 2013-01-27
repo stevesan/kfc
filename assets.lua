@@ -1,5 +1,5 @@
 IconAssets = group{quality=9.95}
-Icon = image{"icon.png"}
+Icon = image{"sprites/icon.png"}
 
 Music = sound{"wavs/chicken-loop-16khz.wav"}
 --Music = sound{"wavs/Chicken Feed.wav"}
