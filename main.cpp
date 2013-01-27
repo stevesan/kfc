@@ -127,8 +127,10 @@ class Entity
 		{
 		public:
 			bool gotSeed;
+			bool leftBlock;
+			int oldBlockId;
 
-			UpdateResult() : gotSeed(false)
+			UpdateResult() : gotSeed(false), leftBlock(false), oldBlockId(-1)
 			{
 			}
 		};
@@ -191,6 +193,8 @@ class Entity
 				{
 					if( blk.isSideConnected(exitSide) )
 					{
+						rv.leftBlock = true;
+						rv.oldBlockId = blockId;
 						moveToBlock( blocks, blk.getNbor(exitSide) );
 					}
 					else
@@ -268,6 +272,23 @@ public:
 		}
 	}
 
+	void randomizeBlockIfUnused(int blockId)
+	{
+	LOG("maybe randomize block %d\n", blockId);
+		if( chicken.blockId == blockId )
+			return;
+	LOG("not used by chicken %d\n", blockId);
+
+		for( int i = 0; i < arraysize(chicks); i++ )
+		{
+			if( chicks[i].state != Entity::Entity_Unused && chicks[i].blockId == blockId )
+				return;
+		}
+
+LOG("randomizing block %d\n", blockId);
+		blocks[blockId].randomize(gRandom);
+	}
+
 	void update(float dt)
 	{
 		Entity::UpdateResult rv = chicken.update(blocks, dt);
@@ -275,7 +296,7 @@ public:
 		if( rv.gotSeed )
 		{
 			numSeeds++;
-			LOG("got seed, now %d\n", numSeeds);
+			//LOG("got seed, now %d\n", numSeeds);
 
 			if( numSeeds >= gSeedsPerHatch && nextUnusedChick < arraysize(chicks) )
 			{
@@ -288,12 +309,20 @@ public:
 				chick.reachedCenter = parent.reachedCenter;
 				chick.dir = parent.dir;
 				chick.enterSide = parent.enterSide;
-				LOG("hatching\n");
+				//LOG("hatching\n");
 			}
 		}
 
+		if( rv.leftBlock )
+			randomizeBlockIfUnused(rv.oldBlockId);
+
 		for( int i = 0; i < arraysize(chicks); i++ )
-			chicks[i].update(blocks, dt);
+		{
+			Entity::UpdateResult rv = chicks[i].update(blocks, dt);
+
+			if( rv.leftBlock )
+				randomizeBlockIfUnused(rv.oldBlockId);
+		}
 
 		// check death
 		bool anyDead = chicken.isDead();

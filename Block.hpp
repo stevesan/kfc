@@ -62,7 +62,7 @@ public:
 			{
 				spriteInUse[i] = true;
 				vid.sprites[i].setImage( img, 0 );
-				LOG("turning on sprite %d\n", i);
+				//LOG("turning on sprite %d\n", i);
 				return i;
 			}
 		}
