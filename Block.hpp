@@ -96,10 +96,10 @@ public:
 
 			// set up arrow sprite positions
 			/*
-			vid.sprites[TOP+1].move( centerPos(getSidePos(TOP), Arrows, true) );
-			vid.sprites[BOTTOM+1].move( centerPos(getSidePos(BOTTOM), Arrows, true) );
-			vid.sprites[RIGHT+1].move( centerPos(getSidePos(RIGHT), Arrows, true) );
-			vid.sprites[LEFT+1].move( centerPos(getSidePos(LEFT), Arrows, true) );
+			vid.sprites[TOP+1].move( getSpritePos(getSidePos(TOP), Arrows, true) );
+			vid.sprites[BOTTOM+1].move( getSpritePos(getSidePos(BOTTOM), Arrows, true) );
+			vid.sprites[RIGHT+1].move( getSpritePos(getSidePos(RIGHT), Arrows, true) );
+			vid.sprites[LEFT+1].move( getSpritePos(getSidePos(LEFT), Arrows, true) );
 			*/
 
 			for( int i = 0; i < 4; i++ )

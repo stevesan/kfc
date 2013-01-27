@@ -39,7 +39,7 @@ class Entity
 
 	enum {Type_Chicken, Type_Chick, NumTypes} type;
 		int spriteId;	// within the block's sprites
-		Float2 pos;
+		Float2 centerPos;
 		Float2 dir;
 		float speed;
 
@@ -75,10 +75,12 @@ class Entity
 
 		Float2 getCenter()
 		{
-			Float2 p;
-			p.x = pos.x + getCurrentImage().pixelWidth()/2.0;
-			p.y = pos.y + getCurrentImage().pixelHeight()/2.0;
-			return p;
+			return centerPos;
+		}
+
+		Float getSpritePos()
+		{
+			return getSpritePos( centerPos, getCurrentImage() );
 		}
 
 		void moveToBlock( Block* blocks, int newBid, bool isHatch = false )
@@ -115,7 +117,7 @@ class Entity
 
 			if( !isHatch )
 			{
-				pos = centerPos(
+				pos = getSpritePos(
 						getSidePos(enterSide),
 						getCurrentImage(), true );
 			}
@@ -208,7 +210,7 @@ class Entity
 					else
 					{
 						// game over! do nothing for now
-						pos = centerPos(
+						pos = getSpritePos(
 								getSidePos(oppositeSide(exitSide)),
 								getCurrentImage(), true );
 						state = Entity_Dead;
@@ -268,8 +270,6 @@ public:
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
 			chicks[i].speed = 50.0;
-			//chicks[i].moveToBlock( blocks, 0);
-			//chicks[i].pos.y += (i+1)*32;
 		}
 
 		numSeeds = 0;
@@ -354,7 +354,7 @@ public:
 				Entity& parent = ( nextUnusedChick == 0 ? chicken : chicks[nextUnusedChick-1] );
 				Entity& chick = chicks[nextUnusedChick++];
 
-				chick.pos = centerPos( parent.getCenter(), chick.getCurrentImage() );
+				chick.centerPos = parent.getCenter();
 				chick.moveToBlock( blocks, parent.blockId, true );
 				chick.reachedCenter = parent.reachedCenter;
 				chick.dir = parent.dir;
