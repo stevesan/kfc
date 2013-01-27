@@ -42,8 +42,8 @@ void gInitAnims()
 	gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 1 );
 	gAnims[Anim_ChickenWalk].addFrame( AnimChicken, 2 );
 	gAnims[Anim_ChickenWalk].fps = 8.0;
-	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChick, 3 );
-	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChick, 4 );
+	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChicken, 3 );
+	gAnims[Anim_ChickenWalkLeft].addFrame( AnimChicken, 4 );
 	gAnims[Anim_ChickenWalkLeft].fps = 8.0;
 
 	gAnims[Anim_ChickWalk].addFrame( AnimChick, 0 );
@@ -162,7 +162,7 @@ class Entity
 			else
 			{
 				/*TODO: change to chicken*/
-				animer.setAnim( &gAnims[Anim_ChickWalk], true );
+				animer.setAnim( &gAnims[getDownAnim()], true );
 				state = Entity_Alive;
 			}
 
