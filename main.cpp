@@ -26,6 +26,7 @@ enum { Anim_ChickenWalk,
 Anim_ChickWalk,
 Anim_ChickWalkRight,
 Anim_ChickWalkLeft,
+Anim_ChickWalkUp,
 Anim_Hatch,
 Anim_ChickenDeath,
 Anim_ChickDeath,
@@ -47,10 +48,13 @@ void gInitAnims()
 	gAnims[Anim_ChickWalkRight].addFrame( AnimChick, 3 );
 	gAnims[Anim_ChickWalkRight].addFrame( AnimChick, 4 );
 	gAnims[Anim_ChickWalkRight].fps = 8.0;
-
 	gAnims[Anim_ChickWalkLeft].addFrame( AnimChick, 5 );
 	gAnims[Anim_ChickWalkLeft].addFrame( AnimChick, 6 );
 	gAnims[Anim_ChickWalkLeft].fps = 8.0;
+	gAnims[Anim_ChickWalkUp].addFrame( AnimChick, 7 );
+	gAnims[Anim_ChickWalkUp].addFrame( AnimChick, 8 );
+	gAnims[Anim_ChickWalkUp].addFrame( AnimChick, 9 );
+	gAnims[Anim_ChickWalkUp].fps = 8.0;
 
 	gAnims[Anim_Hatch].addFrame( AnimChick, 10 );
 	gAnims[Anim_Hatch].addFrame( AnimChick, 11 );

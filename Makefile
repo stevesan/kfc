@@ -12,3 +12,5 @@ build : $(APP).elf
 sim : $(APP).elf
 	siftulator -n 6 $(APP).elf
 
+push :
+	git push origin master
