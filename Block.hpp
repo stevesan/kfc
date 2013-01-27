@@ -134,10 +134,10 @@ public:
 		}
 		else if( roadType == Road_L )
 		{
-			if( enterSide == BOTTOM )
+			if( enterSide == TOP )
 				return LEFT;
 			else
-				return BOTTOM;
+				return TOP;
 		}
 		return BOTTOM;
 	}
@@ -216,10 +216,11 @@ public:
 				break;
 		}
 
+	//LOG("block %d is active? %d\n", cubeId, isActive);
 		if(roadType == Road_I )
-			vid.bg0.image(vec(0,0), isActive?RoadI : RoadIgray, 0);
+			vid.bg0.image(vec(0,0), isActive ? RoadI : RoadIgray, 0);
 		else if(roadType == Road_L )
-			vid.bg0.image(vec(0,0), isActive? RoadL : RoadLgray, 0);
+			vid.bg0.image(vec(0,0), isActive ? RoadL : RoadLgray, 0);
 
 
 		// update side graphics
@@ -262,7 +263,7 @@ public:
 		switch(roadType)
 		{
 			case Road_I: return side == BOTTOM || side == TOP;
-			case Road_L: return side == LEFT || side == BOTTOM;
+			case Road_L: return side == TOP || side == LEFT;
 			default: return false;
 		}
 	}

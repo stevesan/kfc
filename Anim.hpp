@@ -53,6 +53,8 @@ public:
 
 	int getFrameNum( float playTime ) const
 	{
+		if( playTime == getTotalTime() )
+			return nextFreeFrame-1;
 		unsigned num = (int)(playTime * fps) % nextFreeFrame;
 		return num;
 	}
