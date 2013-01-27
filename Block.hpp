@@ -74,6 +74,11 @@ public:
 		vid.sprites[i].move(pos);
 	}
 
+	void updateSprite( int i, const PinnedAssetImage& img, int frame )
+	{
+		vid.sprites[i].setImage( img, frame );
+	}
+
 	void deactivateSprite(int i)
 	{
 		if(spriteInUse[i] )
@@ -119,6 +124,15 @@ public:
 		return BOTTOM;
 	}
 
+	void takeSeed()
+	{
+		if( hasSeed )
+		{
+			hasSeed = false;
+			deactivateSprite(seedSpriteId);
+		}
+	}
+
 	void randomize( Random& rand )
 	{
 		if( seedSpriteId != -1 )
@@ -137,7 +151,8 @@ public:
 
 		vid.bg1.setMask(BG1Mask::filled(vec(0,14), vec(16,2)));
 
-		hasSeed = rand.randint(0,1);
+		// TEMP hasSeed = rand.randint(0,1);
+		hasSeed = true;
 
 		if(hasSeed)
 		{

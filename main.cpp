@@ -13,6 +13,8 @@ using namespace Sifteo;
 //----------------------------------------
 //  
 //----------------------------------------
+static const float gHatchTime = 0.8;
+static const int gSeedsPerHatch = 1;
 static const unsigned gNumBlocksBuffered = 6;
 static const unsigned gMaxNumChicks = 24;
 Block gBlocks[ gNumBlocksBuffered ];
@@ -35,24 +37,29 @@ class Entity
 {
 	public:
 
-
-		bool isChicken;
+	enum {Type_Chicken, Type_Chick, NumTypes} type;
 		int spriteId;	// within the block's sprites
 		Float2 pos;
 		Float2 dir;
 		float speed;
-		const PinnedAssetImage* img;
 
 		int blockId;
-		enum { Entity_Unused, Entity_Alive, Entity_Dead } state;
+		enum { Entity_Unused, Entity_Hatching, Entity_Alive, Entity_Dead } state;
 		Side enterSide;
 		bool reachedCenter;
+		float hatchingTime = 0.0;
 
 		Entity() :
-			isChicken(false),
-			spriteId(-1), img(NULL), blockId(-1), state(Entity_Unused)
+			type(Type_Chicken),
+			spriteId(-1), blockId(-1), state(Entity_Unused)
 			{
 			}
+
+		const PinnedAssetImage& getCurrentImage()
+		{
+			if( type == Type_Chicken ) return Chicken;
+			else return Chick;
+		}
 
 		void reset(Block* blocks)
 		{
@@ -62,14 +69,31 @@ class Entity
 			}
 
 			spriteId = -1;
-			img = NULL;
 			blockId = -1;
 			state = Entity_Unused;
 		}
 
-		void moveToBlock( Block* blocks, int newBid )
+		Float2 getCenter()
 		{
-			state = Entity_Alive;
+			Float2 p;
+			p.x = pos.x + getCurrentImage().pixelWidth()/2.0;
+			p.y = pos.y + getCurrentImage().pixelHeight()/2.0;
+			return p;
+		}
+
+		void moveToBlock( Block* blocks, int newBid, bool isHatch = false )
+		{
+			if( isHatch )
+			{
+				state = Entity_Hatching;
+				type = Type_Chick;
+				hatchingTime = 0.0;
+			}
+			else
+			{
+				state = Entity_Alive;
+			}
+
 			if( blockId != -1 )
 			{
 				blocks[blockId].deactivateSprite(spriteId);
@@ -79,7 +103,8 @@ class Entity
 			blockId = newBid;
 			Block& newBlock = blocks[blockId];
 
-			spriteId = newBlock.activateSprite(*img);
+			spriteId = newBlock.activateSprite(getCurrentImage());
+			newBlock.updateSprite(spriteId, pos);
 
 			if( oldBid != -1 )
 				enterSide = newBlock.getSideOf(oldBid);
@@ -88,75 +113,102 @@ class Entity
 
 			dir = -1 * sideDirection(enterSide);
 
-			pos = centerPos(
-					getSidePos(enterSide),
-					*img, true );
+			if( !isHatch )
+			{
+				pos = centerPos(
+						getSidePos(enterSide),
+						getCurrentImage(), true );
+			}
 
 			reachedCenter = false;
 		}
 
-		void update( Block* blocks, float dt)
+		class UpdateResult
 		{
-			if( state != Entity_Alive )
-				return;
+		public:
+			bool gotSeed;
 
-			Block& blk = blocks[blockId];
-			pos += dt * speed * dir;
-			blk.updateSprite( spriteId, pos );
-
-			// Chicken reached the center?
-			if( !reachedCenter )
+			UpdateResult() : gotSeed(false)
 			{
-				Float2 center = {64, 64};
+			}
+		};
 
-				if( (pos-centerPos(center,*img)).len() < 2 )
+		virtual UpdateResult update( Block* blocks, float dt)
+		{
+			UpdateResult rv;
+
+			if( state == Entity_Hatching )
+			{
+				hatchingTime += dt;
+
+				if( hatchingTime > gHatchTime )
 				{
-					reachedCenter = true;
+					blocks[blockId].updateSprite( spriteId, getCurrentImage(), 0 );
+					state = Entity_Alive;
+				}
+			}
+			else if( state == Entity_Alive )
+			{
+				Block& blk = blocks[blockId];
+				pos += dt * speed * dir;
+				blk.updateSprite( spriteId, pos );
 
-					if( blk.hasSeed )
+				// Chicken reached the center?
+				if( !reachedCenter )
+				{
+					Float2 center = {64, 64};
+
+					if( (pos-centerPos(center,getCurrentImage())).len() < 2 )
 					{
-						//rv.gotSeed = true;
-						LOG("Got seed\n");
+						reachedCenter = true;
+
+						if( type == Type_Chicken && blk.hasSeed )
+						{
+							rv.gotSeed = true;
+							blk.takeSeed();
+							LOG("Got seed\n");
+						}
+
+						// Redirect towards the exit
+						dir = sideDirection( blk.getExitSide(enterSide) );
+						LOG("new dir = %f %f\n", dir.x, dir.y);
 					}
+				}
 
-					// Redirect towards the exit
-					dir = sideDirection( blk.getExitSide(enterSide) );
-					LOG("new dir = %f %f\n", dir.x, dir.y);
+				// Did we exit?
+				Side exitSide = NO_SIDE;
+				if( pos.x < 0 )
+					exitSide = LEFT;
+				else if( pos.x > 128.0 )
+					exitSide = RIGHT;
+				else if( pos.y < 0 )
+					exitSide = TOP;
+				else if( pos.y > 128.0 )
+					exitSide = BOTTOM;
+
+				// Chicken walking to next block?
+				if( exitSide != NO_SIDE )
+				{
+					if( blk.isSideConnected(exitSide) )
+					{
+						moveToBlock( blocks, blk.getNbor(exitSide) );
+					}
+					else
+					{
+						// game over! do nothing for now
+						pos = centerPos(
+								getSidePos(oppositeSide(exitSide)),
+								getCurrentImage(), true );
+						state = Entity_Dead;
+					}
 				}
 			}
 
-			// Did we exit?
-			Side exitSide = NO_SIDE;
-			if( pos.x < 0 )
-				exitSide = LEFT;
-			else if( pos.x > 128.0 )
-				exitSide = RIGHT;
-			else if( pos.y < 0 )
-				exitSide = TOP;
-			else if( pos.y > 128.0 )
-				exitSide = BOTTOM;
-
-			// Chicken walking to next block?
-			if( exitSide != NO_SIDE )
-			{
-				if( blk.isSideConnected(exitSide) )
-				{
-					moveToBlock( blocks, blk.getNbor(exitSide) );
-				}
-				else
-				{
-					// game over! do nothing for now
-					pos = centerPos(
-							getSidePos(oppositeSide(exitSide)),
-							*img, true );
-					state = Entity_Dead;
-				}
-			}
+			return rv;
 		}
 
 		bool isDead() { return state == Entity_Dead; }
 };
-
 
 class State
 {
@@ -164,13 +216,15 @@ public:
 
 	enum { State_Playing, State_GameOver } state;
 	Entity chicken;
-	Entity chicks[3];
+	Entity chicks[6];
+	int nextUnusedChick;
 	Block blocks[gNumBlocksBuffered];
 	int lastChickenBlock;
 	int numSeeds;
 
 	State() :
 		state(State_Playing) ,
+		nextUnusedChick(0),
 		lastChickenBlock(0)
 		{
 		}
@@ -184,33 +238,59 @@ public:
 		}
 
 		chicken.reset(blocks);
-		for( int i = 0; i < 3; i++ )
+		for( int i = 0; i < arraysize(chicks); i++ )
 		{
 			chicks[i].reset(blocks);
 		}
+		nextUnusedChick = 0;
 
-		chicken.isChicken = true;
+		chicken.type = Entity::Type_Chicken;
 		chicken.speed = 50.0;
-		chicken.img = &Chicken;
 		chicken.moveToBlock( blocks, lastChickenBlock );
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 		{
 			chicks[i].speed = 50.0;
-			chicks[i].img = &Chick;
 			//chicks[i].moveToBlock( blocks, 0);
 			//chicks[i].pos.y += (i+1)*32;
 		}
 
 		numSeeds = 0;
-
 		state = State_Playing;
+	}
+
+	void triggerGameOver()
+	{
+		state = State_GameOver;
+		for( int i = 0; i < arraysize(blocks); i++ )
+		{
+			blocks[i].onGameOver();
+		}
 	}
 
 	void update(float dt)
 	{
-		chicken.update(blocks, dt);
+		Entity::UpdateResult rv = chicken.update(blocks, dt);
 		lastChickenBlock = chicken.blockId;
+		if( rv.gotSeed )
+		{
+			numSeeds++;
+			LOG("got seed, now %d\n", numSeeds);
+
+			if( numSeeds >= gSeedsPerHatch && nextUnusedChick < arraysize(chicks) )
+			{
+				// HATCH
+				Entity& parent = ( nextUnusedChick == 0 ? chicken : chicks[nextUnusedChick-1] );
+				Entity& chick = chicks[nextUnusedChick++];
+
+				chick.pos = centerPos( parent.getCenter(), chick.getCurrentImage() );
+				chick.moveToBlock( blocks, parent.blockId, true );
+				chick.reachedCenter = parent.reachedCenter;
+				chick.dir = parent.dir;
+				chick.enterSide = parent.enterSide;
+				LOG("hatching\n");
+			}
+		}
 
 		for( int i = 0; i < arraysize(chicks); i++ )
 			chicks[i].update(blocks, dt);
@@ -224,11 +304,7 @@ public:
 
 		if( anyDead )
 		{
-			state = State_GameOver;
-			for( int i = 0; i < arraysize(blocks); i++ )
-			{
-				blocks[i].onGameOver();
-			}
+			triggerGameOver();
 		}
 		else
 		{
@@ -247,7 +323,7 @@ public:
 				if( blocks[ chicks[i].blockId ].isActive == false )
 				{
 					LOG("chick %d died due to block %d in active\n", i, chicks[i].blockId );
-					state = State_GameOver;
+					triggerGameOver();
 				}
 			}
 
