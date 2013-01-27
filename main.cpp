@@ -22,7 +22,14 @@ Block gBlocks[ gNumCubes ];
 
 Random gRandom;
 
-enum { Anim_ChickenWalk, Anim_ChickWalk, Anim_Hatch, NumAnims };
+enum { Anim_ChickenWalk,
+Anim_ChickWalk,
+Anim_ChickWalkRight,
+Anim_ChickWalkLeft,
+Anim_Hatch,
+Anim_ChickenDeath,
+Anim_ChickDeath,
+NumAnims };
 
 Animation gAnims[NumAnims];
 
@@ -37,11 +44,27 @@ void gInitAnims()
 	gAnims[Anim_ChickWalk].addFrame( AnimChick, 2 );
 	gAnims[Anim_ChickWalk].fps = 8.0;
 
+	gAnims[Anim_ChickWalkRight].addFrame( AnimChick, 3 );
+	gAnims[Anim_ChickWalkRight].addFrame( AnimChick, 4 );
+	gAnims[Anim_ChickWalkRight].fps = 8.0;
+
+	gAnims[Anim_ChickWalkLeft].addFrame( AnimChick, 5 );
+	gAnims[Anim_ChickWalkLeft].addFrame( AnimChick, 6 );
+	gAnims[Anim_ChickWalkLeft].fps = 8.0;
+
 	gAnims[Anim_Hatch].addFrame( AnimChick, 10 );
 	gAnims[Anim_Hatch].addFrame( AnimChick, 11 );
 	gAnims[Anim_Hatch].addFrame( AnimChick, 12 );
 	gAnims[Anim_Hatch].addFrame( AnimChick, 13 );
 	gAnims[Anim_Hatch].fps = 8.0;
+
+	gAnims[Anim_ChickenDeath].addFrame( AnimChickenDeath, 0 );
+	gAnims[Anim_ChickenDeath].addFrame( AnimChickenDeath, 1 );
+	gAnims[Anim_ChickenDeath].addFrame( AnimChickenDeath, 2 );
+
+	gAnims[Anim_ChickDeath].addFrame( AnimChickDeath, 0 );
+	gAnims[Anim_ChickDeath].addFrame( AnimChickDeath, 1 );
+	gAnims[Anim_ChickDeath].addFrame( AnimChickDeath, 2 );
 }
 
 //----------------------------------------
@@ -224,8 +247,14 @@ class Entity
 						}
 
 						// Redirect towards the exit
-						dir = sideDirection( blk.getExitSide(enterSide) );
+						Side exitSide = blk.getExitSide(enterSide);
+						dir = sideDirection( exitSide );
 						LOG("new dir = %f %f\n", dir.x, dir.y);
+
+						if( exitSide == LEFT )
+							animer.setAnim( &gAnims[Anim_ChickWalkLeft], true );
+						else 
+							animer.setAnim( &gAnims[Anim_ChickWalk], true );
 					}
 				}
 
@@ -251,7 +280,7 @@ class Entity
 					}
 					else
 					{
-						state = Entity_Dead;
+						onDie();
 					}
 				}
 			}
@@ -260,6 +289,16 @@ class Entity
 		}
 
 		bool isDead() { return state == Entity_Dead; }
+
+		void onDie()
+		{
+			if( type == Type_Chicken )
+				animer.setAnim( &gAnims[Anim_ChickenDeath], false );
+			else
+				animer.setAnim( &gAnims[Anim_ChickDeath], false );
+
+			state = Entity_Dead;
+		}
 };
 
 class State
@@ -369,6 +408,12 @@ public:
 
 	UpdateResult updateGameOver(float dt)
 	{
+		chicken.update(blocks, dt);
+		for( int i = 0; i < arraysize(chicks); i++ )
+		{
+			Entity::UpdateResult crv2 = chicks[i].update(blocks, dt);
+		}
+
 		UpdateResult rv;
 		gameOverTime += dt;
 		if( gameOverTime > 1.0 )
@@ -474,6 +519,7 @@ public:
 					musicChan.stop();
 					effectsChan.stop();
 					effectsChan.play(ChickDiedSnd);
+					chicks[i].onDie();
 				}
 			}
 

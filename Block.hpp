@@ -23,7 +23,7 @@ public:
 
 	void onGameOver()
 	{
-		writeText("Game over!!!");
+		writeText("GAME OVER 12345");
 		isActive = false;
 	}
 
