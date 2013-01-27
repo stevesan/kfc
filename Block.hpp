@@ -21,9 +21,18 @@ public:
 	{
 	}
 
+	void onGameOver()
+	{
+		writeText("Game over!!!");
+		isActive = false;
+	}
+
 	bool spriteInUse[8];
 
 	bool isActive;
+
+	bool hasSeed;
+	int seedSpriteId;
 
 	void propagateActive(Block* blocks)
 	{
@@ -112,6 +121,11 @@ public:
 
 	void randomize( Random& rand )
 	{
+		if( seedSpriteId != -1 )
+		{
+			deactivateSprite(seedSpriteId);
+		}
+
 		roadType = (RoadType)rand.randint( 0, NumRoads-1 );
 		seedType = (SeedType)rand.randint( 0, NumSeeds-1 );
 
@@ -122,6 +136,15 @@ public:
 		}
 
 		vid.bg1.setMask(BG1Mask::filled(vec(0,14), vec(16,2)));
+
+		hasSeed = rand.randint(0,1);
+
+		if(hasSeed)
+		{
+			seedSpriteId = activateSprite(Seed);
+			Float2 c = {64, 64};
+			vid.sprites[seedSpriteId].move(c);
+		}
 
 /*
 		int seedIdx = (int)seedType % SeedSprites.numFrames();
