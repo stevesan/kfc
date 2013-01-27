@@ -335,7 +335,7 @@ public:
 	float gameOverTime = 0.0;
 	int blocksTilResetSpeed;
 	float baseSpeed = 40.0;
-	float baseSpeedAccel = 10.0;
+	float baseSpeedAccel = 5.0;
 	float totalPlayTime = 0.0;
 
 	State() :
